@@ -18,15 +18,14 @@ import java.util.Comparator;
 public class RoomTableApp extends Application {
     private final TableView<ResidentialRoom> table = new TableView<>();
     private final ObservableList<ResidentialRoom> rooms = FXCollections.observableArrayList();
-    private int firstBigRoomIndex = -1;
+
     private boolean ascendingSort = true;
-    private ResidentialRoom largestRoom = null;
 
     private final TextField nameTextField = new TextField();
     private final TextField areaTextField = new TextField();
     private final TextField bathroomsTextField = new TextField();
     private final CheckBox balconyCheckBox = new CheckBox("Has Balcony");
-    private final ComboBox<String> heatingComboBox = new ComboBox<>(FXCollections.observableArrayList("Central", "Electric", "None"));
+    private final ComboBox<String> heatingComboBox = new ComboBox<>(FXCollections.observableArrayList("Центральное", "Электрическое", "Нет"));
 
     public static void main(String[] args) {
         Application.launch(args);
@@ -48,12 +47,7 @@ public class RoomTableApp extends Application {
         TableColumn<ResidentialRoom, Boolean> hasBalconyColumn = getResidentialRoomBooleanTableColumn();
 
 
-        TableColumn<ResidentialRoom, String> heatingColumn = new TableColumn<>("Heating");
-        heatingColumn.setCellValueFactory(cellData -> {
-            ResidentialRoom room = cellData.getValue();
-            String heating = room.getHeatingType();
-            return new SimpleStringProperty(heating);
-        });
+        TableColumn<ResidentialRoom, String> heatingColumn = getResidentialRoomStringTableColumn();
 
         table.getColumns().addAll(nameColumn, areaColumn, numberOfBathroomsColumn, hasBalconyColumn, heatingColumn);
         table.setItems(rooms);
@@ -100,6 +94,37 @@ public class RoomTableApp extends Application {
     }
 
     @NotNull
+    private static TableColumn<ResidentialRoom, String> getResidentialRoomStringTableColumn() {
+        TableColumn<ResidentialRoom, String> heatingColumn = new TableColumn<>("Heating");
+        heatingColumn.setCellValueFactory(cellData -> {
+            ResidentialRoom room = cellData.getValue();
+            String heating = room.getHeatingType();
+            return new SimpleStringProperty(heating);
+        });
+        heatingColumn.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item == null || empty) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    if ("Центральное".equals(item)) {
+                        setStyle("-fx-background-color: yellow;");
+                    } else if ("Электрическое".equals(item)) {
+                        setStyle("-fx-background-color: lightblue;");
+                    } else {
+                        setStyle("-fx-background-color: lightcoral;");
+                    }
+                }
+
+            }
+        });
+        return heatingColumn;
+    }
+
+
     private static TableColumn<ResidentialRoom, Boolean> getResidentialRoomBooleanTableColumn() {
         TableColumn<ResidentialRoom, Boolean> hasBalconyColumn = new TableColumn<>("Has Balcony");
         hasBalconyColumn.setCellValueFactory(cellData -> {
@@ -107,7 +132,7 @@ public class RoomTableApp extends Application {
             boolean hasBalcony = room.hasBalcony();
             return new SimpleBooleanProperty(hasBalcony);
         });
-        hasBalconyColumn.setCellFactory(column -> new TableCell<ResidentialRoom, Boolean>() {
+        hasBalconyColumn.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(Boolean item, boolean empty) {
                 super.updateItem(item, empty);
@@ -116,7 +141,7 @@ public class RoomTableApp extends Application {
                     setStyle("");
                 } else {
                     ResidentialRoom room = getTableView().getItems().get(getIndex());
-                    setText(item ? "Yes" : "No");
+                    setText(item ? "Да" : "Нет");
                     if (!item) {
                         setStyle("-fx-background-color: lightcoral;");
                     } else {
@@ -136,16 +161,9 @@ public class RoomTableApp extends Application {
             boolean hasBalcony = balconyCheckBox.isSelected();
             String heating = heatingComboBox.getValue();
 
-            if (area > 25.0 && firstBigRoomIndex == -1) {
-                firstBigRoomIndex = rooms.size();
-            }
 
             ResidentialRoom newRoom = new ResidentialRoom(name, area, bathrooms, hasBalcony, heating);
             rooms.add(newRoom);
-
-            if (largestRoom == null || newRoom.getArea() > largestRoom.getArea()) {
-                largestRoom = newRoom;
-            }
 
             nameTextField.clear();
             areaTextField.clear();
@@ -153,7 +171,7 @@ public class RoomTableApp extends Application {
             balconyCheckBox.setSelected(false);
             heatingComboBox.setValue(null);
 
-            updateColors();
+
         } catch (NumberFormatException e) {
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Input Error");
@@ -164,18 +182,9 @@ public class RoomTableApp extends Application {
     }
 
     private void addAllRoomsFromArray() {
-        for (ResidentialRoom room : getRoomsFromArray()) {
-            if (room.getArea() > 25.0 && firstBigRoomIndex == -1) {
-                firstBigRoomIndex = rooms.size();
-            }
-            rooms.add(room);
+        rooms.addAll(getRoomsFromArray());
 
-            if (largestRoom == null || room.getArea() > largestRoom.getArea()) {
-                largestRoom = room;
-            }
-        }
 
-        updateColors();
     }
 
     private ObservableList<ResidentialRoom> getRoomsFromArray() {
@@ -184,6 +193,7 @@ public class RoomTableApp extends Application {
         roomsArray.add(new ResidentialRoom("Гостиная", 30.0, 0, false, "Электрическое"));
         roomsArray.add(new ResidentialRoom("Детская", 15.0, 2, true, "Нет"));
         roomsArray.add(new ResidentialRoom("Кухня", 12.0, 0, true, "Нет"));
+        roomsArray.add(new ResidentialRoom("Туалет", 9.0, 1, false, "Электрическое"));
         return roomsArray;
     }
 
@@ -194,25 +204,5 @@ public class RoomTableApp extends Application {
                 : (r1, r2) -> Double.compare(r2.getArea(), r1.getArea());
 
         rooms.sort(comparator);
-
-        if (firstBigRoomIndex >= 0 && firstBigRoomIndex < rooms.size()) {
-            largestRoom = rooms.get(firstBigRoomIndex);
-        } else {
-            largestRoom = null;
-        }
-
-        updateColors();
-    }
-
-    private void updateColors() {
-        table.refresh();
-        if (largestRoom != null) {
-            int largestRoomIndex = rooms.indexOf(largestRoom);
-            if (largestRoomIndex >= 0) {
-                table.requestFocus();
-                table.getSelectionModel().select(largestRoomIndex);
-                table.getFocusModel().focus(largestRoomIndex);
-            }
-        }
     }
 }
